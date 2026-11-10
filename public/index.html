@@ -1,6 +1,51 @@
 <!doctype html>
 <html lang="fr">
   <head>
+    <!-- Meta Pixel Code -->
+    <script>
+      !(function (f, b, e, v, n, t, s) {
+        if (f.fbq) return;
+        n = f.fbq = function () {
+          n.callMethod
+            ? n.callMethod.apply(n, arguments)
+            : n.queue.push(arguments);
+        };
+        if (!f._fbq) f._fbq = n;
+        n.push = n;
+        n.loaded = !0;
+        n.version = "2.0";
+        n.queue = [];
+        t = b.createElement(e);
+        t.async = !0;
+        t.src = v;
+        s = b.getElementsByTagName(e)[0];
+        s.parentNode.insertBefore(t, s);
+      })(
+        window,
+        document,
+        "script",
+        "https://connect.facebook.net/en_US/fbevents.js",
+      );
+      fbq("init", "1464399659121484");
+      fbq("track", "PageView");
+      // Helper sûr : ne casse jamais le site si le Pixel est bloqué (adblock)
+      window.mtTrack = function (name, data, eventId) {
+        try {
+          if (typeof fbq !== "function") return;
+          eventId
+            ? fbq("track", name, data || {}, { eventID: eventId })
+            : fbq("track", name, data || {});
+        } catch (e) {}
+      };
+    </script>
+    <noscript
+      ><img
+        height="1"
+        width="1"
+        style="display: none"
+        src="https://www.facebook.com/tr?id=1464399659121484&ev=PageView&noscript=1"
+    /></noscript>
+    <!-- End Meta Pixel Code -->
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mus Tech – Pièces PC & Cosmétiques PC</title>
@@ -9649,6 +9694,10 @@
       // CART & ADD TO CART
       let cartCount = 0;
       function addToCart(id) {
+        mtTrack("AddToCart", {
+          content_ids: [String(id)],
+          content_type: "product",
+        });
         const existing = checkoutCart.find((x) => x.id === id);
         if (existing) {
           existing.qty++;
@@ -10001,6 +10050,20 @@
 
         try {
           const resOrder = await OrdersAPI.place(orderData);
+          mtTrack(
+            "Purchase",
+            {
+              value: Number(resOrder.total) || 0,
+              currency: "DZD",
+              content_type: "product",
+              content_ids: (resOrder.items || []).map((i) => String(i.id)),
+              num_items: (resOrder.items || []).reduce(
+                (a, i) => a + (i.qty || 1),
+                0,
+              ),
+            },
+            resOrder.order_ref,
+          );
 
           // Track promo usage
           if (checkoutAppliedPromo?.code) {
@@ -10080,6 +10143,11 @@
         const p = PRODUCTS.find((x) => x.id === productId);
         if (!p) return;
         pmCurrentProduct = p;
+        mtTrack("ViewContent", {
+          content_ids: [String(p.id)],
+          content_name: p.name,
+          content_type: "product",
+        });
         pmCurrentVariant = 0;
         pmCurrentQty = 1;
 

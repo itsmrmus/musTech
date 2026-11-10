@@ -8,6 +8,7 @@ const {
 } = require("../middleware/auth");
 // FIX #5: Rate limiter Redis (persistant entre redémarrages)
 const { orderRateLimiter } = require("../middleware/rateLimiter");
+const { sendEvent } = require("../utils/metaCapi");
 
 // Normalise un numéro algérien vers 0XXXXXXXXX
 // Accepte: 0558210430 / +213558210430 / +2130558210430
@@ -165,6 +166,21 @@ router.post("/", orderRateLimiter, optionalAuth, async (req, res) => {
     // plus bas), et restauré automatiquement si la commande est annulée.
 
     const order = inserted[0];
+
+    // Meta Conversions API — Purchase (event_id = order_ref, identique au Pixel navigateur)
+    sendEvent({
+      eventName: "Purchase",
+      eventId: orderRef,
+      req,
+      user: { name: customer, phone, city: wilaya },
+      custom: {
+        value: total,
+        currency: "DZD",
+        content_type: "product",
+        content_ids: enrichedItems.map((i) => String(i.id)),
+        num_items: enrichedItems.reduce((a, i) => a + i.qty, 0),
+      },
+    });
     res.status(201).json({
       ...order,
       items: JSON.parse(order.items),

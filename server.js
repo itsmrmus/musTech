@@ -1,4 +1,4 @@
-require("dotenv").config();
+=require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
@@ -29,16 +29,25 @@ app.use(
           "'unsafe-hashes'",
           "https://cdn.jsdelivr.net",
           "https://cdnjs.cloudflare.com",
+          "https://connect.facebook.net",
         ],
         scriptSrcAttr: ["'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        imgSrc: ["'self'", "data:", "https://res.cloudinary.com", "blob:"],
+        imgSrc: [
+          "'self'",
+          "data:",
+          "https://res.cloudinary.com",
+          "blob:",
+          "https://www.facebook.com",
+        ],
         connectSrc: [
           "'self'",
           "https://mustech-production.up.railway.app",
           "https://api.emailjs.com",
           "https://cdnjs.cloudflare.com",
+          "https://www.facebook.com",
+          "https://connect.facebook.net",
         ],
         frameSrc: ["'none'"],
         objectSrc: ["'none'"],
