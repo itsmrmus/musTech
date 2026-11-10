@@ -36,7 +36,9 @@ async function sendEvent({ eventName, eventId, req, user = {}, custom = {} }) {
     return;
   }
   try {
-    const [first, ...rest] = String(user.name || "").trim().split(/\s+/);
+    const [first, ...rest] = String(user.name || "")
+      .trim()
+      .split(/\s+/);
     const payload = {
       data: [
         {
