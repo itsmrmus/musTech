@@ -4,7 +4,7 @@
 // Optionnel : META_TEST_EVENT_CODE (pour l'onglet "Test events")
 const crypto = require("crypto");
 
-const PIXEL_ID = process.env.META_PIXEL_ID || "1464399659121484";
+const PIXEL_ID = process.env.META_PIXEL_ID || "1523077569645795";
 const TOKEN = process.env.META_ACCESS_TOKEN;
 const TEST_CODE = process.env.META_TEST_EVENT_CODE;
 
