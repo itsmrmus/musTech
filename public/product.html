@@ -315,6 +315,26 @@
       }
       .btn-cart-add:hover { background: var(--green-light); }
 
+      /* ORDER ACTIONS ROW: cart icon + confirm */
+      .order-actions { display: flex; align-items: stretch; gap: 0.6rem; margin-bottom: 0.5rem; }
+      .order-actions .btn-primary { flex: 1; width: auto; margin-bottom: 0; }
+      .btn-cart-icon {
+        flex: 0 0 auto;
+        min-width: 58px;
+        padding: 0 0.9rem;
+        background: #fff;
+        color: var(--green-dark);
+        border: 2px solid var(--green);
+        border-radius: 50px;
+        cursor: pointer;
+        font-family: inherit;
+        display: flex; align-items: center; justify-content: center; gap: 2px;
+        transition: all 0.2s;
+      }
+      .btn-cart-icon:hover { background: var(--green-light); }
+      .btn-cart-icon:active { transform: scale(0.95); }
+      .cart-plus { font-size: 1.15rem; font-weight: 800; line-height: 1; }
+
       /* RATING MODAL */
       .rating-overlay {
         display: none;
@@ -1282,32 +1302,32 @@
                   style="resize: vertical; height: 72px"></textarea>
               </div>
 
-              <button class="btn-cart-add" onclick="addToCart()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
-                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-                </svg>
-                Ajouter au Panier
-              </button>
-
-
-              <button
-                class="btn-primary"
-                id="confirm-btn"
-                onclick="placeOrder()">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                Confirmer la Commande
-              </button>
+              <div class="order-actions">
+                <button class="btn-cart-icon" onclick="addToCart()" aria-label="Ajouter au panier" title="Ajouter au panier">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                  </svg>
+                  <span class="cart-plus">+</span>
+                </button>
+                <button
+                  class="btn-primary"
+                  id="confirm-btn"
+                  onclick="placeOrder()">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Confirmer la Commande
+                </button>
+              </div>
             </div>
 
             <!-- SUCCESS -->
