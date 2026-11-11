@@ -88,14 +88,15 @@ router.post("/", cartRateLimiter, optionalAuth, async (req, res) => {
 router.get("/", adminMiddleware, async (req, res) => {
   try {
     const after = parseInt(req.query.after) || 0;
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 200);
     const { rows } = await db.query(
       `SELECT id, product_id, product_name, variant_label, qty,
               session_id, user_id, user_name, created_at
        FROM cart_events
        WHERE id > $1
        ORDER BY id DESC
-       LIMIT 50`,
-      [after],
+       LIMIT $2`,
+      [after, limit],
     );
     const stats = await db.query(
       `SELECT COUNT(*) AS total,
@@ -103,12 +104,23 @@ router.get("/", adminMiddleware, async (req, res) => {
        FROM cart_events
        WHERE created_at >= date_trunc('day', NOW())`,
     );
+    const top = await db.query(
+      `SELECT product_name, SUM(qty) AS qty
+       FROM cart_events
+       WHERE created_at >= date_trunc('day', NOW())
+       GROUP BY product_name
+       ORDER BY qty DESC
+       LIMIT 1`,
+    );
     const latest = await db.query("SELECT COALESCE(MAX(id),0) AS m FROM cart_events");
     res.json({
       events: rows,
       latest_id: parseInt(latest.rows[0].m),
       today_adds: parseInt(stats.rows[0].total),
       today_visitors: parseInt(stats.rows[0].visitors),
+      today_top: top.rows[0]
+        ? { name: top.rows[0].product_name, qty: parseInt(top.rows[0].qty) }
+        : null,
     });
   } catch (err) {
     ERR(err, res);

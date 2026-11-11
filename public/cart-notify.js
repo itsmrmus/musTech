@@ -13,6 +13,14 @@
   let events = []; // historique affiché (plus récent d'abord)
   let timer = null;
   let ui = null;
+  const MAX = 200;
+  let stats = { adds: 0, visitors: 0, top: null };
+  // Sur admin.html : onglet "Paniers" dans le menu → pas de cloche flottante
+  const embedded = () => !!document.getElementById("admin-carts");
+  const tabOpen = () => {
+    const t = document.getElementById("admin-carts");
+    return !!t && t.style.display !== "none";
+  };
 
   const isAdmin = () => {
     try {
@@ -39,6 +47,7 @@
     if (ui) return;
     const wrap = document.createElement("div");
     wrap.id = "mt-cart-notify";
+    if (embedded()) wrap.className = "embedded";
     wrap.innerHTML = `
       <style>
         #mt-cart-notify{position:fixed;left:16px;bottom:16px;z-index:9999;font-family:inherit}
@@ -55,6 +64,7 @@
         .mt-cn-item.new{background:#fff7ed}
         .mt-cn-item .t{color:#6b7280;font-size:11px}
         .mt-cn-empty{padding:24px 14px;text-align:center;color:#6b7280;font-size:13px}
+        #mt-cart-notify.embedded #mt-cn-btn,#mt-cart-notify.embedded #mt-cn-panel{display:none!important}
         #mt-cn-toast{position:fixed;left:16px;bottom:80px;z-index:10000;background:#111;color:#fff;padding:12px 16px;
           border-radius:12px;font-size:13px;max-width:300px;box-shadow:0 8px 24px rgba(0,0,0,.3);
           opacity:0;transform:translateY(10px);pointer-events:none;transition:.25s}
@@ -89,8 +99,46 @@
     });
   }
 
+  function renderTab(newIds) {
+    const body = document.getElementById("admin-carts-body");
+    if (!body) return;
+    const set = (id, v) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = v;
+    };
+    set("carts-stat-adds", stats.adds);
+    set("carts-stat-visitors", stats.visitors);
+    set("carts-stat-top", stats.top ? stats.top.name : "—");
+    set("carts-stat-top-sub", stats.top ? `${stats.top.qty} unité(s) aujourd'hui` : "");
+    if (!events.length) {
+      body.innerHTML =
+        '<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:1.5rem">Aucun ajout au panier pour le moment.</td></tr>';
+      return;
+    }
+    body.innerHTML = events
+      .map((e) => {
+        const isNew = newIds && newIds.has(e.id);
+        const who = e.user_name
+          ? `<b>${esc(e.user_name)}</b>`
+          : `Visiteur${e.session_id ? ` <span style="color:#9ca3af;font-size:11px">#${esc(e.session_id.slice(-4))}</span>` : ""}`;
+        const exact = new Date(e.created_at + (/Z|\+/.test(e.created_at) ? "" : "Z"));
+        return `<tr${isNew ? ' style="background:#fff7ed"' : ""}>
+          <td title="${esc(exact.toLocaleString())}">${ago(e.created_at)}</td>
+          <td><b>${esc(e.product_name)}</b></td>
+          <td>${e.variant_label ? esc(e.variant_label) : "—"}</td>
+          <td>× ${e.qty}</td>
+          <td>${who}</td></tr>`;
+      })
+      .join("");
+  }
+
   function render(newIds) {
     if (!ui) return;
+    document.querySelectorAll(".mt-cart-badge").forEach((b) => {
+      b.textContent = unread > 99 ? "99+" : unread;
+      b.style.display = unread > 0 ? "inline-flex" : "none";
+    });
+    renderTab(newIds);
     ui.badge.textContent = unread > 99 ? "99+" : unread;
     ui.badge.style.display = unread > 0 ? "flex" : "none";
     if (!events.length) {
@@ -129,6 +177,7 @@
       const url = "/cart-events" + (lastId !== null ? `?after=${lastId}` : "");
       const data = await apiFetch(url);
       ui.sub.textContent = `Aujourd'hui : ${data.today_adds} ajout(s) · ${data.today_visitors} visiteur(s)`;
+      stats = { adds: data.today_adds, visitors: data.today_visitors, top: data.today_top || null };
       if (lastId === null) {
         // 1er chargement : historique sans alerte
         events = data.events;
@@ -137,12 +186,13 @@
       } else if (data.events.length) {
         // seulement les nouveaux (id > lastId)
         const fresh = data.events;
-        events = fresh.concat(events).slice(0, 50);
-        unread += fresh.length;
+        events = fresh.concat(events).slice(0, MAX);
+        unread += tabOpen() ? 0 : fresh.length;
         render(new Set(fresh.map((x) => x.id)));
         notify(fresh);
       }
       lastId = data.latest_id;
+      if (!data.events.length) render(); // rafraîchit stats + "il y a X min"
     } catch (e) {
       // session expirée / non-admin : on s'arrête sans bruit
       if (/401|403|authentifi|réservé|invalide|expiré/i.test(e.message)) stop();
@@ -162,6 +212,23 @@
     if (el) el.remove();
     ui = null;
   }
+
+  // Appelé par admin.html quand on ouvre l'onglet "Paniers"
+  window.MtCartNotify = {
+    async onTabOpen() {
+      if (!isAdmin()) return;
+      buildUI();
+      unread = 0;
+      render();
+      try {
+        const data = await apiFetch(`/cart-events?limit=${MAX}`);
+        events = data.events;
+        stats = { adds: data.today_adds, visitors: data.today_visitors, top: data.today_top || null };
+        lastId = data.latest_id;
+        render();
+      } catch {}
+    },
+  };
 
   // Le rôle admin est connu après checkSession()/login : on surveille l'état.
   setInterval(() => {

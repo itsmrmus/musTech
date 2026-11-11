@@ -1372,6 +1372,21 @@
         margin-bottom: 1.5rem;
         color: #fff;
       }
+      .mt-cart-badge {
+        display: none;
+        margin-left: 6px;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        border-radius: 9px;
+        background: #ef4444;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 700;
+        align-items: center;
+        justify-content: center;
+        vertical-align: middle;
+      }
       .admin-mobile-nav-close {
         background: transparent;
         border: none;
@@ -2019,6 +2034,16 @@
               <a
                 href="javascript:void(0)"
                 onclick="
+                  showAdminTab('carts', this);
+                  return false;
+                "
+                >🛒 Paniers <span class="mt-cart-badge"></span></a
+              >
+            </li>
+            <li>
+              <a
+                href="javascript:void(0)"
+                onclick="
                   showAdminTab('promos', this);
                   return false;
                 "
@@ -2164,6 +2189,14 @@
                 syncMobileNav(this);
               ">
               ⭐ Avis
+            </a>
+            <a
+              href="javascript:void(0)"
+              onclick="
+                showAdminTab('carts', this);
+                syncMobileNav(this);
+              ">
+              🛒 Paniers <span class="mt-cart-badge"></span>
             </a>
             <a
               href="javascript:void(0)"
@@ -2403,6 +2436,50 @@
                     </tr>
                   </thead>
                   <tbody id="admin-reviews-table"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <!-- CARTS TAB -->
+          <div id="admin-carts" class="admin-tab" style="display: none">
+            <div class="admin-header">
+              <h1>Paniers</h1>
+              <span id="carts-live" style="font-size:0.8rem;color:var(--gray-500)">
+                ● Mise à jour automatique (15 s)
+              </span>
+            </div>
+            <div class="stats-grid" style="margin-bottom: 1.25rem">
+              <div class="stat-card" style="border-top: 3px solid #3ecf6e">
+                <div class="label">Ajouts aujourd'hui</div>
+                <div class="value" id="carts-stat-adds">0</div>
+                <div class="change" style="color: var(--gray-500)">Depuis minuit</div>
+              </div>
+              <div class="stat-card" style="border-top: 3px solid #7f77dd">
+                <div class="label">Visiteurs</div>
+                <div class="value" id="carts-stat-visitors">0</div>
+                <div class="change" style="color: var(--gray-500)">Distincts aujourd'hui</div>
+              </div>
+              <div class="stat-card" style="border-top: 3px solid #ef9f27">
+                <div class="label">Produit le + ajouté</div>
+                <div class="value" id="carts-stat-top" style="font-size:1.05rem;line-height:1.3">—</div>
+                <div class="change" id="carts-stat-top-sub" style="color: var(--gray-500)"></div>
+              </div>
+            </div>
+            <div class="admin-table-card">
+              <div style="overflow-x: auto">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Heure</th>
+                      <th>Produit</th>
+                      <th>Variante</th>
+                      <th>Qté</th>
+                      <th>Client</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-carts-body">
+                    <tr><td colspan="5" style="text-align:center;color:var(--gray-500);padding:1.5rem">Chargement…</td></tr>
+                  </tbody>
                 </table>
               </div>
             </div>
@@ -6893,6 +6970,7 @@
         if (el) el.classList.add("active");
         if (tab === "finance") renderFinanceChart();
         if (tab === "promos") loadPromos();
+        if (tab === "carts" && window.MtCartNotify) window.MtCartNotify.onTabOpen();
       }
 
       function showSection(cat) {
