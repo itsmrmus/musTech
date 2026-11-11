@@ -200,20 +200,26 @@ router.get("/", adminMiddleware, async (req, res) => {
        LIMIT 1`,
     );
     const latest = await db.query("SELECT COALESCE(MAX(id),0) AS m FROM cart_events");
-    const leadsRes = await db.query(
-      `SELECT id, customer_name, phone, wilaya, address, items,
-              created_at, updated_at
-       FROM cart_leads
-       ORDER BY updated_at DESC
-       LIMIT 100`,
-    );
-    const leads = leadsRes.rows.map((l) => {
-      let items = [];
-      try {
-        items = JSON.parse(l.items || "[]");
-      } catch {}
-      return { ...l, items };
-    });
+    // Ne doit jamais empêcher l'onglet Paniers de s'afficher
+    let leads = [];
+    try {
+      const leadsRes = await db.query(
+        `SELECT id, customer_name, phone, wilaya, address, items,
+                created_at, updated_at
+         FROM cart_leads
+         ORDER BY updated_at DESC
+         LIMIT 100`,
+      );
+      leads = leadsRes.rows.map((l) => {
+        let items = [];
+        try {
+          items = JSON.parse(l.items || "[]");
+        } catch {}
+        return { ...l, items };
+      });
+    } catch (e) {
+      console.error("cart_leads:", e.message);
+    }
     res.json({
       leads,
       events: rows,

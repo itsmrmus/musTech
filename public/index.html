@@ -10052,6 +10052,8 @@
 
         try {
           const resOrder = await OrdersAPI.place(orderData);
+          // Commande confirmée : ses infos sont dans "Commandes" → on les retire de "Paniers"
+          CartAPI.saveLead({ confirmed: true });
           mtTrack(
             "Purchase",
             {
@@ -10734,6 +10736,8 @@
 
         try {
           const res = await OrdersAPI.place(orderData);
+          // Commande confirmée : ses infos sont dans "Commandes" → on les retire de "Paniers"
+          CartAPI.saveLead({ confirmed: true });
           // Send admin email
           sendAdminOrderEmail(res);
           try {
@@ -10797,6 +10801,21 @@
         });
         persistCart();
         updateCartBadge();
+        // Admin > Paniers : infos déjà saisies dans le formulaire + contenu du panier
+        {
+          const w = document.getElementById("pm-wilaya");
+          CartAPI.saveLead({
+            name: document.getElementById("pm-name")?.value.trim() || "",
+            phone: document.getElementById("pm-phone")?.value.trim() || "",
+            wilaya: w?.options[w.selectedIndex]?.text.split(" —")[0] || "",
+            address: document.getElementById("pm-address")?.value.trim() || "",
+            items: checkoutCart.map((x) => ({
+              id: x.id,
+              variant: x.variant,
+              qty: x.qty,
+            })),
+          });
+        }
         const names = pmSelectedVariants
           .map((i) => pmCurrentProduct.variants[i])
           .join(", ");

@@ -175,6 +175,8 @@ async function initDB() {
   await pool.query(
     `CREATE INDEX IF NOT EXISTS idx_cart_leads_updated ON cart_leads(updated_at DESC);`,
   );
+  // Si la table existe déjà d'une version précédente : le téléphone devient facultatif
+  await pool.query(`ALTER TABLE cart_leads ALTER COLUMN phone DROP NOT NULL;`);
 
   // Sync status for existing products based on current stock
   await pool.query(`
