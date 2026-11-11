@@ -33,10 +33,22 @@
     String(s ?? "").replace(
       /[&<>"']/g,
       (c) =>
-        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        })[c],
     );
   const ago = (d) => {
-    const s = Math.max(0, Math.floor((Date.now() - new Date(d + (/Z|\+/.test(d) ? "" : "Z")).getTime()) / 1000));
+    const s = Math.max(
+      0,
+      Math.floor(
+        (Date.now() - new Date(d + (/Z|\+/.test(d) ? "" : "Z")).getTime()) /
+          1000,
+      ),
+    );
     if (s < 60) return "à l'instant";
     if (s < 3600) return `il y a ${Math.floor(s / 60)} min`;
     if (s < 86400) return `il y a ${Math.floor(s / 3600)} h`;
@@ -130,7 +142,10 @@
     set("carts-stat-adds", stats.adds);
     set("carts-stat-visitors", stats.visitors);
     set("carts-stat-top", stats.top ? stats.top.name : "—");
-    set("carts-stat-top-sub", stats.top ? `${stats.top.qty} unité(s) aujourd'hui` : "");
+    set(
+      "carts-stat-top-sub",
+      stats.top ? `${stats.top.qty} unité(s) aujourd'hui` : "",
+    );
     if (!events.length) {
       body.innerHTML =
         '<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:1.5rem">Aucun ajout au panier pour le moment.</td></tr>';
@@ -142,7 +157,9 @@
         const who = e.user_name
           ? `<b>${esc(e.user_name)}</b>`
           : `Visiteur${e.session_id ? ` <span style="color:#9ca3af;font-size:11px">#${esc(e.session_id.slice(-4))}</span>` : ""}`;
-        const exact = new Date(e.created_at + (/Z|\+/.test(e.created_at) ? "" : "Z"));
+        const exact = new Date(
+          e.created_at + (/Z|\+/.test(e.created_at) ? "" : "Z"),
+        );
         return `<tr${isNew ? ' style="background:#fff7ed"' : ""}>
           <td title="${esc(exact.toLocaleString())}">${ago(e.created_at)}</td>
           <td><b>${esc(e.product_name)}</b></td>
@@ -163,13 +180,16 @@
     ui.badge.textContent = unread > 99 ? "99+" : unread;
     ui.badge.style.display = unread > 0 ? "flex" : "none";
     if (!events.length) {
-      ui.list.innerHTML = '<div class="mt-cn-empty">Aucun ajout au panier pour le moment.</div>';
+      ui.list.innerHTML =
+        '<div class="mt-cn-empty">Aucun ajout au panier pour le moment.</div>';
       return;
     }
     ui.list.innerHTML = events
       .map((e) => {
         const who = e.user_name ? esc(e.user_name) : "Visiteur";
-        const v = e.variant_label ? ` <span class="t">(${esc(e.variant_label)})</span>` : "";
+        const v = e.variant_label
+          ? ` <span class="t">(${esc(e.variant_label)})</span>`
+          : "";
         return `<div class="mt-cn-item ${newIds && newIds.has(e.id) ? "new" : ""}">
           <b>${esc(e.product_name)}</b>${v} × ${e.qty}<br>
           <span class="t">${who} · ${ago(e.created_at)}</span></div>`;
@@ -179,13 +199,20 @@
 
   function notify(fresh) {
     const e = fresh[0];
-    const extra = fresh.length > 1 ? ` (+${fresh.length - 1} autre${fresh.length > 2 ? "s" : ""})` : "";
+    const extra =
+      fresh.length > 1
+        ? ` (+${fresh.length - 1} autre${fresh.length > 2 ? "s" : ""})`
+        : "";
     const msg = `🛒 ${e.user_name || "Un visiteur"} a ajouté « ${e.product_name} » au panier${extra}`;
     ui.toast.textContent = msg;
     ui.toast.classList.add("show");
     setTimeout(() => ui.toast.classList.remove("show"), 5000);
     try {
-      if ("Notification" in window && Notification.permission === "granted" && document.hidden) {
+      if (
+        "Notification" in window &&
+        Notification.permission === "granted" &&
+        document.hidden
+      ) {
         new Notification("Mus Tech — Panier", { body: msg });
       }
     } catch {}
@@ -199,7 +226,11 @@
       const url = "/cart-events" + (lastId !== null ? `?after=${lastId}` : "");
       const data = await apiFetch(url);
       ui.sub.textContent = `Aujourd'hui : ${data.today_adds} ajout(s) · ${data.today_visitors} visiteur(s)`;
-      stats = { adds: data.today_adds, visitors: data.today_visitors, top: data.today_top || null };
+      stats = {
+        adds: data.today_adds,
+        visitors: data.today_visitors,
+        top: data.today_top || null,
+      };
       if (lastId === null) {
         // 1er chargement : historique sans alerte
         events = data.events;
@@ -207,7 +238,15 @@
         render();
       } else if (data.events.length) {
         // seulement les nouveaux (id > lastId)
-        const fresh = data.events;
+        // on ignore les événements déjà connus (évite les doublons si
+        // deux requêtes se croisent)
+        const known = new Set(events.map((x) => x.id));
+        const fresh = data.events.filter((x) => !known.has(x.id));
+        if (!fresh.length) {
+          lastId = data.latest_id;
+          render();
+          return;
+        }
         events = fresh.concat(events).slice(0, MAX);
         unread += tabOpen() ? 0 : fresh.length;
         render(new Set(fresh.map((x) => x.id)));
@@ -232,7 +271,9 @@
     lastId = null;
     const el = document.getElementById("mt-cart-notify");
     if (el) el.remove();
-    document.querySelectorAll("#auth-btn .mt-cart-badge").forEach((b) => b.remove());
+    document
+      .querySelectorAll("#auth-btn .mt-cart-badge")
+      .forEach((b) => b.remove());
     ui = null;
   }
 
@@ -259,7 +300,11 @@
       try {
         const data = await apiFetch(`/cart-events?limit=${MAX}`);
         events = data.events;
-        stats = { adds: data.today_adds, visitors: data.today_visitors, top: data.today_top || null };
+        stats = {
+          adds: data.today_adds,
+          visitors: data.today_visitors,
+          top: data.today_top || null,
+        };
         lastId = data.latest_id;
         render();
       } catch {}
