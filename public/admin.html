@@ -2444,9 +2444,15 @@
           <div id="admin-carts" class="admin-tab" style="display: none">
             <div class="admin-header">
               <h1>Paniers</h1>
-              <span id="carts-live" style="font-size:0.8rem;color:var(--gray-500)">
-                ● Mise à jour automatique (15 s)
-              </span>
+              <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+                <span id="carts-live" style="font-size:0.8rem;color:var(--gray-500)">
+                  ● Mise à jour auto (15 s)
+                </span>
+                <button class="btn" style="background:#fee2e2;color:#b91c1c;border:1px solid #fecaca"
+                  onclick="window.MtCartNotify && MtCartNotify.clear()">
+                  🗑 Vider l'historique
+                </button>
+              </div>
             </div>
             <div class="stats-grid" style="margin-bottom: 1.25rem">
               <div class="stat-card" style="border-top: 3px solid #3ecf6e">

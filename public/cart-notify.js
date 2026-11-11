@@ -43,11 +43,32 @@
     return `il y a ${Math.floor(s / 86400)} j`;
   };
 
+  function injectBadgeCss() {
+    if (document.getElementById("mt-cart-badge-css")) return;
+    const st = document.createElement("style");
+    st.id = "mt-cart-badge-css";
+    st.textContent =
+      ".mt-cart-badge{display:none;margin-left:6px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#ef4444;color:#fff;font-size:11px;font-weight:700;align-items:center;justify-content:center;vertical-align:middle;line-height:1}";
+    document.head.appendChild(st);
+  }
+  // Sur la boutique : pastille sur le bouton "Admin" du menu du haut
+  function ensureAuthBadge() {
+    if (embedded()) return;
+    const btn = document.getElementById("auth-btn");
+    if (btn && !btn.querySelector(".mt-cart-badge")) {
+      const b = document.createElement("span");
+      b.className = "mt-cart-badge";
+      btn.appendChild(b);
+      render();
+    }
+  }
+
   function buildUI() {
     if (ui) return;
+    injectBadgeCss();
     const wrap = document.createElement("div");
     wrap.id = "mt-cart-notify";
-    if (embedded()) wrap.className = "embedded";
+
     wrap.innerHTML = `
       <style>
         #mt-cart-notify{position:fixed;left:16px;bottom:16px;z-index:9999;font-family:inherit}
@@ -64,7 +85,7 @@
         .mt-cn-item.new{background:#fff7ed}
         .mt-cn-item .t{color:#6b7280;font-size:11px}
         .mt-cn-empty{padding:24px 14px;text-align:center;color:#6b7280;font-size:13px}
-        #mt-cart-notify.embedded #mt-cn-btn,#mt-cart-notify.embedded #mt-cn-panel{display:none!important}
+        #mt-cn-btn,#mt-cn-panel{display:none!important}
         #mt-cn-toast{position:fixed;left:16px;bottom:80px;z-index:10000;background:#111;color:#fff;padding:12px 16px;
           border-radius:12px;font-size:13px;max-width:300px;box-shadow:0 8px 24px rgba(0,0,0,.3);
           opacity:0;transform:translateY(10px);pointer-events:none;transition:.25s}
@@ -173,6 +194,7 @@
   async function poll() {
     if (!isAdmin()) return;
     buildUI();
+    ensureAuthBadge();
     try {
       const url = "/cart-events" + (lastId !== null ? `?after=${lastId}` : "");
       const data = await apiFetch(url);
@@ -210,11 +232,25 @@
     lastId = null;
     const el = document.getElementById("mt-cart-notify");
     if (el) el.remove();
+    document.querySelectorAll("#auth-btn .mt-cart-badge").forEach((b) => b.remove());
     ui = null;
   }
 
   // Appelé par admin.html quand on ouvre l'onglet "Paniers"
   window.MtCartNotify = {
+    async clear() {
+      if (!confirm("Vider tout l'historique des ajouts au panier ?")) return;
+      try {
+        await apiFetch("/cart-events", { method: "DELETE" });
+        events = [];
+        unread = 0;
+        stats = { adds: 0, visitors: 0, top: null };
+        lastId = 0;
+        render();
+      } catch (e) {
+        alert("Impossible de vider l'historique : " + e.message);
+      }
+    },
     async onTabOpen() {
       if (!isAdmin()) return;
       buildUI();
@@ -232,6 +268,7 @@
 
   // Le rôle admin est connu après checkSession()/login : on surveille l'état.
   setInterval(() => {
+    if (isAdmin() && ui) ensureAuthBadge();
     if (isAdmin() && !timer) start();
     else if (!isAdmin() && timer) stop();
   }, 2000);

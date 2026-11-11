@@ -127,4 +127,14 @@ router.get("/", adminMiddleware, async (req, res) => {
   }
 });
 
+// ── DELETE /api/cart-events — admin : vider l'historique ───
+router.delete("/", adminMiddleware, async (req, res) => {
+  try {
+    await db.query("DELETE FROM cart_events");
+    res.json({ ok: true });
+  } catch (err) {
+    ERR(err, res);
+  }
+});
+
 module.exports = router;
