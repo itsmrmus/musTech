@@ -156,6 +156,26 @@ async function initDB() {
     `CREATE INDEX IF NOT EXISTS idx_cart_events_created ON cart_events(created_at DESC);`,
   );
 
+  // ── MIGRATION: infos client saisies quand il clique sur 🛒 (onglet admin Paniers) ──
+  // Supprimées dès qu'il confirme sa commande (elles sont alors dans "Commandes").
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS cart_leads (
+      id            SERIAL PRIMARY KEY,
+      session_id    TEXT NOT NULL UNIQUE,
+      customer_name TEXT,
+      phone         TEXT,
+      wilaya        TEXT,
+      address       TEXT,
+      items         TEXT NOT NULL DEFAULT '[]',
+      user_id       INTEGER,
+      created_at    TIMESTAMP NOT NULL DEFAULT NOW(),
+      updated_at    TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+  `);
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_cart_leads_updated ON cart_leads(updated_at DESC);`,
+  );
+
   // Sync status for existing products based on current stock
   await pool.query(`
     UPDATE products SET status = CASE WHEN stock <= 0 THEN 'out_of_stock' ELSE 'in_stock' END;

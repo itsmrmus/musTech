@@ -15,6 +15,8 @@
   let ui = null;
   const MAX = 200;
   let stats = { adds: 0, visitors: 0, top: null };
+  let leads = []; // clients ayant saisi leurs infos (plus récent d'abord)
+  let leadsSeen = null; // clés "id:updated_at" déjà vues (null = 1er chargement)
   // Sur admin.html : onglet "Paniers" dans le menu → pas de cloche flottante
   const embedded = () => !!document.getElementById("admin-carts");
   const tabOpen = () => {
@@ -132,7 +134,50 @@
     });
   }
 
+  function renderLeads() {
+    const lb = document.getElementById("admin-leads-body");
+    if (!lb) return;
+    if (!leads.length) {
+      lb.innerHTML =
+        '<tr><td colspan="6" style="text-align:center;color:#6b7280;padding:1.5rem">Aucun client en attente.</td></tr>';
+      return;
+    }
+    lb.innerHTML = leads
+      .map((l) => {
+        const items = (l.items || [])
+          .map(
+            (i) =>
+              `${esc(i.name)}${i.variant ? ` <span style="color:#9ca3af">(${esc(i.variant)})</span>` : ""} × ${i.qty}`,
+          )
+          .join("<br>");
+        const exact = new Date(
+          l.updated_at + (/Z|\+/.test(l.updated_at) ? "" : "Z"),
+        );
+        return `<tr>
+          <td title="${esc(exact.toLocaleString())}">${ago(l.updated_at)}</td>
+          <td><b>${esc(l.customer_name || "—")}</b></td>
+          <td>${l.phone ? `<a href="tel:${esc(l.phone)}">${esc(l.phone)}</a>` : "—"}</td>
+          <td>${esc(l.wilaya || "—")}</td>
+          <td>${esc(l.address || "—")}</td>
+          <td>${items || "—"}</td></tr>`;
+      })
+      .join("");
+  }
+
+  // Met à jour la liste ; renvoie les nouveaux clients (alerte) sauf 1er chargement
+  function applyLeads(data) {
+    if (!Array.isArray(data.leads)) return [];
+    leads = data.leads;
+    const keys = new Set(leads.map((l) => l.id + ":" + l.updated_at));
+    let fresh = [];
+    if (leadsSeen !== null)
+      fresh = leads.filter((l) => !leadsSeen.has(l.id + ":" + l.updated_at));
+    leadsSeen = keys;
+    return fresh;
+  }
+
   function renderTab(newIds) {
+    renderLeads();
     const body = document.getElementById("admin-carts-body");
     if (!body) return;
     const set = (id, v) => {
@@ -231,6 +276,14 @@
         visitors: data.today_visitors,
         top: data.today_top || null,
       };
+      const freshLeads = applyLeads(data);
+      if (freshLeads.length) {
+        unread += tabOpen() ? 0 : freshLeads.length;
+        const l = freshLeads[0];
+        ui.toast.textContent = `📞 ${l.customer_name || "Un client"}${l.phone ? " (" + l.phone + ")" : ""} a saisi ses infos`;
+        ui.toast.classList.add("show");
+        setTimeout(() => ui.toast.classList.remove("show"), 5000);
+      }
       if (lastId === null) {
         // 1er chargement : historique sans alerte
         events = data.events;
@@ -284,6 +337,7 @@
       try {
         await apiFetch("/cart-events", { method: "DELETE" });
         events = [];
+        leads = [];
         unread = 0;
         stats = { adds: 0, visitors: 0, top: null };
         lastId = 0;
@@ -300,6 +354,7 @@
       try {
         const data = await apiFetch(`/cart-events?limit=${MAX}`);
         events = data.events;
+        applyLeads(data);
         stats = {
           adds: data.today_adds,
           visitors: data.today_visitors,

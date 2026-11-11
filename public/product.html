@@ -2101,6 +2101,8 @@
 
         try {
           const result = await OrdersAPI.place(orderData);
+          // Commande confirmée : ses infos sont dans "Commandes" → on les retire de "Paniers"
+          CartAPI.saveLead({ confirmed: true });
           mtTrack('Purchase', { value: Number(result.total) || 0, currency: 'DZD', content_type: 'product', content_ids: (result.items || []).map((i) => String(i.id)) }, result.order_ref);
           // Track promo usage
           if (appliedPromo?.code) {
@@ -2262,6 +2264,17 @@
         });
         saveSharedCart(cart);
         updateCartBadge();
+        // Admin > Paniers : infos déjà saisies dans le formulaire + contenu du panier
+        {
+          const w = document.getElementById('co-wilaya');
+          CartAPI.saveLead({
+            name: document.getElementById('co-name')?.value.trim() || '',
+            phone: document.getElementById('co-phone')?.value.trim() || '',
+            wilaya: w?.options[w.selectedIndex]?.dataset.name || '',
+            address: document.getElementById('co-address')?.value.trim() || '',
+            items: cart.map((c) => ({ id: c.id, variant: c.variant, qty: c.qty })),
+          });
+        }
         showToast('✅ Ajouté au panier !');
         setTimeout(() => openCartModal(), 400);
       }

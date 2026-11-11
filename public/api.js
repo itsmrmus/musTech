@@ -220,6 +220,21 @@ const CartAPI = {
       }).catch(() => {});
     } catch {}
   },
+  // Envoie les infos saisies par le client (nom, tél, wilaya, adresse + articles)
+  // pour qu'elles apparaissent dans l'onglet admin "Paniers".
+  saveLead(data) {
+    try {
+      // Rien à enregistrer si le client n'a encore rien saisi
+      if (!data.confirmed && !data.name && !data.phone) return;
+      fetch(API_URL + "/cart-events/lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        keepalive: true,
+        body: JSON.stringify({ ...data, session_id: CartAPI._sid() }),
+      }).catch(() => {});
+    } catch {}
+  },
   getEvents: (after) =>
     apiFetch("/cart-events" + (after ? "?after=" + after : "")),
 };
