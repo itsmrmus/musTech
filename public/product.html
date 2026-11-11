@@ -2246,6 +2246,7 @@
         const cart = loadCart();
         product.variants.forEach((v, i) => {
           if (variantQtys[i] > 0) {
+            CartAPI.track(product.id, i, variantQtys[i]);
             const existing = cart.find(c => c.id === product.id && c.variant === i);
             const price = product.variantPrices[i] ?? product.variantPrices[0];
             if (existing) existing.qty += variantQtys[i];

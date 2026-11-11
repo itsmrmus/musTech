@@ -187,3 +187,39 @@ const RatingsAPI = {
 const StatsAPI = {
   get: () => apiFetch("/stats"),
 };
+
+// ── CART TRACKING API ─────────────────────────────────────
+// Prévient le serveur (donc l'admin) qu'un produit a été ajouté au panier.
+// "Fire and forget" : n'interrompt jamais l'achat si ça échoue.
+const CartAPI = {
+  _sid() {
+    try {
+      let id = localStorage.getItem("mt_sid");
+      if (!id) {
+        id = Math.random().toString(36).slice(2) + Date.now().toString(36);
+        localStorage.setItem("mt_sid", id);
+      }
+      return id;
+    } catch {
+      return null;
+    }
+  },
+  track(productId, variant, qty) {
+    try {
+      fetch(API_URL + "/cart-events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        keepalive: true,
+        body: JSON.stringify({
+          product_id: productId,
+          variant: variant || 0,
+          qty: qty || 1,
+          session_id: CartAPI._sid(),
+        }),
+      }).catch(() => {});
+    } catch {}
+  },
+  getEvents: (after) =>
+    apiFetch("/cart-events" + (after ? "?after=" + after : "")),
+};

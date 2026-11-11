@@ -118,6 +118,7 @@ app.use("/api/wilayas", require("./routes/wilayas"));
 app.use("/api/ratings", require("./routes/ratings"));
 app.use("/api/stats", require("./routes/stats"));
 app.use("/api/promos", require("./routes/promos"));
+app.use("/api/cart-events", require("./routes/cart"));
 
 // ── HEALTH CHECK ──────────────────────────────────────────
 app.get("/api/health", (req, res) => {

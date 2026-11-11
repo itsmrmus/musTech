@@ -60,6 +60,14 @@ const ratingsLimiter = createLimiter({
   blockDuration: 60 * 60,
 });
 
+// Ajouts au panier — 30 événements max par minute par IP
+const cartLimiter = createLimiter({
+  keyPrefix: "rl_cart",
+  points: 30,
+  duration: 60,
+  blockDuration: 60,
+});
+
 // ── MIDDLEWARE FACTORY ────────────────────────────────────
 function makeMiddleware(limiter, errorMsg) {
   return async (req, res, next) => {
@@ -88,6 +96,10 @@ module.exports = {
   orderRateLimiter: makeMiddleware(
     orderLimiter,
     "Trop de commandes. Réessayez dans une heure.",
+  ),
+  cartRateLimiter: makeMiddleware(
+    cartLimiter,
+    "Trop de requêtes. Réessayez dans une minute.",
   ),
   ratingsRateLimiter: makeMiddleware(
     ratingsLimiter,

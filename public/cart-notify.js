@@ -1,0 +1,171 @@
+// ============================================================
+//  Mus Tech — Notifications "Ajout au panier" (ADMIN uniquement)
+//  - Interroge /api/cart-events toutes les 15 s quand l'admin est connecté
+//  - Cloche flottante 🛒 + compteur + panneau d'historique
+//  - Toast + notification navigateur (si autorisée) à chaque nouvel ajout
+//  Les visiteurs normaux ne font AUCUNE requête (le script reste inactif).
+// ============================================================
+(function () {
+  const POLL_MS = 15000;
+  const SEEN_KEY = "mt_cart_last_seen";
+  let lastId = null; // dernier id déjà reçu
+  let unread = 0;
+  let events = []; // historique affiché (plus récent d'abord)
+  let timer = null;
+  let ui = null;
+
+  const isAdmin = () => {
+    try {
+      return Auth.getUser()?.role === "admin";
+    } catch {
+      return false;
+    }
+  };
+  const esc = (s) =>
+    String(s ?? "").replace(
+      /[&<>"']/g,
+      (c) =>
+        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+    );
+  const ago = (d) => {
+    const s = Math.max(0, Math.floor((Date.now() - new Date(d + (/Z|\+/.test(d) ? "" : "Z")).getTime()) / 1000));
+    if (s < 60) return "à l'instant";
+    if (s < 3600) return `il y a ${Math.floor(s / 60)} min`;
+    if (s < 86400) return `il y a ${Math.floor(s / 3600)} h`;
+    return `il y a ${Math.floor(s / 86400)} j`;
+  };
+
+  function buildUI() {
+    if (ui) return;
+    const wrap = document.createElement("div");
+    wrap.id = "mt-cart-notify";
+    wrap.innerHTML = `
+      <style>
+        #mt-cart-notify{position:fixed;left:16px;bottom:16px;z-index:9999;font-family:inherit}
+        #mt-cn-btn{position:relative;width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;
+          background:#111;color:#fff;font-size:22px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+        #mt-cn-badge{position:absolute;top:-4px;right:-4px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;
+          background:#ef4444;color:#fff;font-size:12px;font-weight:700;display:none;align-items:center;justify-content:center}
+        #mt-cn-panel{display:none;position:absolute;left:0;bottom:62px;width:min(340px,calc(100vw - 32px));max-height:60vh;
+          overflow:auto;background:#fff;color:#111;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.25);border:1px solid #eee}
+        #mt-cn-panel header{padding:12px 14px;border-bottom:1px solid #eee;font-weight:700;font-size:14px;
+          display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff}
+        #mt-cn-panel .sub{font-weight:500;font-size:12px;color:#6b7280}
+        .mt-cn-item{padding:10px 14px;border-bottom:1px solid #f3f4f6;font-size:13px;line-height:1.35}
+        .mt-cn-item.new{background:#fff7ed}
+        .mt-cn-item .t{color:#6b7280;font-size:11px}
+        .mt-cn-empty{padding:24px 14px;text-align:center;color:#6b7280;font-size:13px}
+        #mt-cn-toast{position:fixed;left:16px;bottom:80px;z-index:10000;background:#111;color:#fff;padding:12px 16px;
+          border-radius:12px;font-size:13px;max-width:300px;box-shadow:0 8px 24px rgba(0,0,0,.3);
+          opacity:0;transform:translateY(10px);pointer-events:none;transition:.25s}
+        #mt-cn-toast.show{opacity:1;transform:none}
+      </style>
+      <div id="mt-cn-panel">
+        <header><span>🛒 Ajouts au panier</span><span class="sub" id="mt-cn-sub"></span></header>
+        <div id="mt-cn-list"></div>
+      </div>
+      <button id="mt-cn-btn" title="Ajouts au panier" aria-label="Ajouts au panier">🛒<span id="mt-cn-badge"></span></button>
+      <div id="mt-cn-toast"></div>`;
+    document.body.appendChild(wrap);
+    ui = {
+      btn: wrap.querySelector("#mt-cn-btn"),
+      badge: wrap.querySelector("#mt-cn-badge"),
+      panel: wrap.querySelector("#mt-cn-panel"),
+      list: wrap.querySelector("#mt-cn-list"),
+      sub: wrap.querySelector("#mt-cn-sub"),
+      toast: wrap.querySelector("#mt-cn-toast"),
+    };
+    ui.btn.addEventListener("click", () => {
+      const open = ui.panel.style.display === "block";
+      ui.panel.style.display = open ? "none" : "block";
+      if (!open) {
+        unread = 0;
+        render();
+        // demande la permission de notification au 1er clic (geste utilisateur)
+        if ("Notification" in window && Notification.permission === "default") {
+          Notification.requestPermission().catch(() => {});
+        }
+      }
+    });
+  }
+
+  function render(newIds) {
+    if (!ui) return;
+    ui.badge.textContent = unread > 99 ? "99+" : unread;
+    ui.badge.style.display = unread > 0 ? "flex" : "none";
+    if (!events.length) {
+      ui.list.innerHTML = '<div class="mt-cn-empty">Aucun ajout au panier pour le moment.</div>';
+      return;
+    }
+    ui.list.innerHTML = events
+      .map((e) => {
+        const who = e.user_name ? esc(e.user_name) : "Visiteur";
+        const v = e.variant_label ? ` <span class="t">(${esc(e.variant_label)})</span>` : "";
+        return `<div class="mt-cn-item ${newIds && newIds.has(e.id) ? "new" : ""}">
+          <b>${esc(e.product_name)}</b>${v} × ${e.qty}<br>
+          <span class="t">${who} · ${ago(e.created_at)}</span></div>`;
+      })
+      .join("");
+  }
+
+  function notify(fresh) {
+    const e = fresh[0];
+    const extra = fresh.length > 1 ? ` (+${fresh.length - 1} autre${fresh.length > 2 ? "s" : ""})` : "";
+    const msg = `🛒 ${e.user_name || "Un visiteur"} a ajouté « ${e.product_name} » au panier${extra}`;
+    ui.toast.textContent = msg;
+    ui.toast.classList.add("show");
+    setTimeout(() => ui.toast.classList.remove("show"), 5000);
+    try {
+      if ("Notification" in window && Notification.permission === "granted" && document.hidden) {
+        new Notification("Mus Tech — Panier", { body: msg });
+      }
+    } catch {}
+  }
+
+  async function poll() {
+    if (!isAdmin()) return;
+    buildUI();
+    try {
+      const url = "/cart-events" + (lastId !== null ? `?after=${lastId}` : "");
+      const data = await apiFetch(url);
+      ui.sub.textContent = `Aujourd'hui : ${data.today_adds} ajout(s) · ${data.today_visitors} visiteur(s)`;
+      if (lastId === null) {
+        // 1er chargement : historique sans alerte
+        events = data.events;
+        unread = 0;
+        render();
+      } else if (data.events.length) {
+        // seulement les nouveaux (id > lastId)
+        const fresh = data.events;
+        events = fresh.concat(events).slice(0, 50);
+        unread += fresh.length;
+        render(new Set(fresh.map((x) => x.id)));
+        notify(fresh);
+      }
+      lastId = data.latest_id;
+    } catch (e) {
+      // session expirée / non-admin : on s'arrête sans bruit
+      if (/401|403|authentifi|réservé|invalide|expiré/i.test(e.message)) stop();
+    }
+  }
+
+  function start() {
+    if (timer) return;
+    poll();
+    timer = setInterval(poll, POLL_MS);
+  }
+  function stop() {
+    clearInterval(timer);
+    timer = null;
+    lastId = null;
+    const el = document.getElementById("mt-cart-notify");
+    if (el) el.remove();
+    ui = null;
+  }
+
+  // Le rôle admin est connu après checkSession()/login : on surveille l'état.
+  setInterval(() => {
+    if (isAdmin() && !timer) start();
+    else if (!isAdmin() && timer) stop();
+  }, 2000);
+})();

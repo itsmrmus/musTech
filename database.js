@@ -138,6 +138,24 @@ async function initDB() {
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS stock_deducted INTEGER NOT NULL DEFAULT 0;
   `);
 
+  // ── MIGRATION: journal des "ajouts au panier" (notifications admin) ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS cart_events (
+      id            SERIAL PRIMARY KEY,
+      product_id    INTEGER NOT NULL,
+      product_name  TEXT    NOT NULL,
+      variant_label TEXT,
+      qty           INTEGER NOT NULL DEFAULT 1,
+      session_id    TEXT,
+      user_id       INTEGER,
+      user_name     TEXT,
+      created_at    TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+  `);
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_cart_events_created ON cart_events(created_at DESC);`,
+  );
+
   // Sync status for existing products based on current stock
   await pool.query(`
     UPDATE products SET status = CASE WHEN stock <= 0 THEN 'out_of_stock' ELSE 'in_stock' END;
